@@ -75,13 +75,6 @@ Things that took some thought:
 - **Where the prices lived.** The boilerplate picked the price with a `switch` inside the `/checkout` route. I needed the same prices for the actual charge, so I moved them into a shared `items.js`. Now the displayed price and the charged amount can't drift apart.
 - **Per-page scripts in Handlebars.** The default layout doesn't make page-specific `<script>` tags easy. I load Stripe.js globally in the layout (it's cheap) and keep the checkout logic in `checkout.js`, included only on the checkout page.
 
-## What I'd do next
 
-- **Webhooks.** Add a `POST /webhook` endpoint that verifies the signature and handles `payment_intent.succeeded` and `payment_intent.payment_failed`. Right now the confirmation page is the only place a success gets recorded, and that depends on the customer's browser making it back. A webhook is the dependable trigger for things like emailing the book or updating inventory.
-- **A real database.** Replace `items.js` and the in-memory flow with storage for orders, inventory, and customers, so they survive a restart.
-- **Multi-item cart.** It's one book per checkout today. A cart would need a PaymentIntent built from a computed total, plus `paymentIntents.update()` if the cart changes afterward.
-- **Saved cards.** A SetupIntent and a Customer object would let returning customers check out faster.
-- **Receipts and tax.** Turn on Stripe's email receipts and add Stripe Tax so tax is calculated into the amount automatically.
-- **Idempotency keys.** Pass one to `paymentIntents.create()` so a retry after a flaky network can't create two PaymentIntents for the same checkout attempt.
-- **Better status handling.** The success page lumps `requires_action`, `processing`, and `canceled` together as "not succeeded." They should be shown separately. A Radar review queue for flagged payments would also help.
-- **Tests.** Integration tests for `/create-payment-intent` and `/success`, either against Stripe's test mode or with `stripe-mock`.# Stripe
+
+
