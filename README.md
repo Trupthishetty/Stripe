@@ -84,4 +84,4 @@ Things that took some thought:
 - **Receipts and tax.** Turn on Stripe's email receipts and add Stripe Tax so tax is calculated into the amount automatically.
 - **Idempotency keys.** Pass one to `paymentIntents.create()` so a retry after a flaky network can't create two PaymentIntents for the same checkout attempt.
 - **Better status handling.** The success page lumps `requires_action`, `processing`, and `canceled` together as "not succeeded." They should be shown separately. A Radar review queue for flagged payments would also help.
-- **Tests.** Integration tests for `/create-payment-intent` and `/success`, either against Stripe's test mode or with `stripe-mock`.
+- **Tests.** Integration tests for `/create-payment-intent` and `/success`, either against Stripe's test mode or with `stripe-mock`.# Stripe
