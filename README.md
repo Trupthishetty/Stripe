@@ -1,80 +1,86 @@
-# Stripe Press Shop
+# Stripe Press Shop — Stripe Payment Element Integration
 
-A small demo shop built with Node, Express and Handlebars. You pick a book, pay for it with the Stripe Payment Element, and land on a confirmation page that shows what you paid and the PaymentIntent ID.
+A small e-commerce demo (Node.js / Express / Handlebars) that lets a customer pick a book,
+pay for it with the **Stripe Payment Element**, and see a confirmation screen showing the
+amount charged and the Stripe PaymentIntent ID.
 
-I started from the [sa-takehome-project-node](https://github.com/mattmitchell6/sa-takehome-project-node) boilerplate. It already had the page layout (Express, Handlebars, Bootstrap) but nothing Stripe-related, so the Stripe integration is what I added.
+This project started from the [sa-takehome-project-node](https://github.com/mattmitchell6/sa-takehome-project-node)
+boilerplate, which provided the page shell (Express, Handlebars, Bootstrap) but had no
+Stripe integration wired in. The work here was adding that integration end to end.
 
-## Running it
+---
 
-You'll need Node 14+, npm, and a free [Stripe account](https://dashboard.stripe.com/register). Test mode is all you need.
+## 1. How to build, configure, and run
+
+**Requirements:** Node.js 14+, npm, and a free [Stripe account](https://dashboard.stripe.com/register)
+(test mode is all you need).
 
 ```bash
 git clone <this-repo-url>
 cd sa-takehome-project-node
 npm install
-cp sample.env .env
 ```
 
-Open `.env` and add your test keys from [Dashboard → Developers → API keys](https://dashboard.stripe.com/test/apikeys):
+Copy the sample environment file and fill in your **test mode** keys from the
+[Stripe Dashboard → Developers → API keys](https://dashboard.stripe.com/test/apikeys):
+
+```bash
+cp sample.env .env
+```
 
 ```
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_PUBLISHABLE_KEY=pk_test_...
 ```
 
-Then:
+Run it:
 
 ```bash
 npm start
 ```
 
-Go to http://localhost:3000, pick a book, and pay with a [test card](https://stripe.com/docs/testing) like `4242 4242 4242 4242` (any future expiry, any CVC, any ZIP). You should end up on `/success` with the amount and PaymentIntent ID. `.env` is git-ignored, so your keys won't get committed.
+Then open **http://localhost:3000**. Pick a book, fill in the Payment Element with a
+[Stripe test card](https://stripe.com/docs/testing) (e.g. `4242 4242 4242 4242`, any future
+expiry, any CVC, any ZIP), and submit. You'll land on `/success` with the charge amount and
+PaymentIntent ID.
 
-## How it works
+`.env` is git-ignored, so keys are never committed.
 
-It's one Express server rendering Handlebars views, plus a small script (`public/js/checkout.js`) that talks to Stripe.js in the browser. No build step, no frontend framework, no database. The catalog lives in `items.js`, which is the only place titles and prices are defined.
+---
 
-The flow:
+## 2. How the solution works
 
-1. `GET /` shows the book list.
-2. Clicking "Purchase" takes you to `/checkout?item=N`, which renders the checkout page with the publishable key and the item id.
-3. The page calls `POST /create-payment-intent` with the item id. The server creates a PaymentIntent and sends back the `client_secret`.
-4. The Payment Element mounts and the customer enters their details.
-5. On submit, `stripe.confirmPayment()` runs in the browser and Stripe redirects to `/success?payment_intent=pi_...`.
-6. `/success` retrieves the PaymentIntent from Stripe and renders the confirmation from that.
+### Stripe APIs used
 
-I made two decisions on purpose:
+- **PaymentIntents API** (`stripe.paymentIntents.create`, `stripe.paymentIntents.retrieve`) —
+  server-side, via the `stripe` Node SDK. One PaymentIntent is created per checkout attempt,
+  with `automatic_payment_methods: { enabled: true }` so Stripe can offer whichever payment
+  methods are enabled on the account without the integration having to list them manually.
+- **Stripe.js v3 + Elements (Payment Element)** — client-side. `stripe.elements({ clientSecret })`
+  creates an Elements group scoped to the PaymentIntent, and `elements.create('payment')`
+  renders the actual card/wallet input, mounted into `#payment-element`.
+- **`stripe.confirmPayment()`** — client-side call that submits the Payment Element and
+  confirms the PaymentIntent, then redirects the browser to `return_url` (`/success`).
 
-**The server sets the price.** `/create-payment-intent` looks up the amount in `items.js` from the item id. It never takes an amount from the browser, so nobody can change the price in dev tools and pay less.
+The **Payment Element** (not Stripe Checkout) was used per the assessment's requirement — it's
+embedded directly in the page rather than redirecting to a Stripe-hosted page, which keeps the
+whole purchase flow on the merchant's own site.
 
-**The success page doesn't trust the URL.** Stripe redirects back with the PaymentIntent ID in the query string, but I don't build the page from that. The server calls `paymentIntents.retrieve()` and shows whatever Stripe says the status and amount are.
+---
 
-### Stripe pieces used
+## 3. Approach, docs used, and challenges
 
-- **PaymentIntents API** (`create` and `retrieve`) through the Node SDK. I create one PaymentIntent per checkout attempt with `automatic_payment_methods` enabled, so whatever payment methods are turned on for the account show up without me listing them.
-- **Stripe.js v3 and the Payment Element.** `stripe.elements({ clientSecret })` sets up Elements for that PaymentIntent, and `elements.create('payment')` mounts into `#payment-element`.
-- **`stripe.confirmPayment()`** submits the form, confirms the PaymentIntent, and redirects to the `return_url`.
+**Approach:** Get a minimal, correct version of the full loop working first — create a
+PaymentIntent, mount the Payment Element, confirm the payment, and show a real confirmation —
+before adding any polish. The existing boilerplate already had the page shell and env var
+scaffolding in place, so the actual work was almost entirely in `app.js` and the two checkout
+views.
 
-I used the Payment Element rather than Stripe Checkout because the assignment asked for it. It also keeps the customer on the shop's own page instead of sending them to a Stripe-hosted one.
-
-## Approach, docs, and things that tripped me up
-
-I wanted the whole loop working first (create the intent, mount the element, confirm, show a real confirmation) before touching anything cosmetic. The boilerplate already had the page shell and env setup, so almost all the work was in `app.js` and the two checkout views.
-
-Docs I leaned on:
-
-- [Accept a payment](https://stripe.com/docs/payments/quickstart)
+**Docs referenced:**
+- [Accept a payment (Payment Element quickstart)](https://stripe.com/docs/payments/quickstart)
 - [Payment Element](https://stripe.com/docs/payments/payment-element)
 - [PaymentIntents API reference](https://stripe.com/docs/api/payment_intents)
-- [Payment Element migration guide (next actions and redirects)](https://stripe.com/docs/payments/payment-element/migration)
+- [Handling next actions / redirect-based payment methods](https://stripe.com/docs/payments/payment-element/migration)
 - [Testing](https://stripe.com/docs/testing)
 
-Things that took some thought:
-
-- **Redirect-based payment methods.** Some methods, like bank redirects, send the customer off the page and back again, so I couldn't rely on what `confirmPayment()` returns in the browser. The confirmation has to be rebuildable from the `return_url` alone, which is why `/success` re-fetches the PaymentIntent.
-- **Where the prices lived.** The boilerplate picked the price with a `switch` inside the `/checkout` route. I needed the same prices for the actual charge, so I moved them into a shared `items.js`. Now the displayed price and the charged amount can't drift apart.
-- **Per-page scripts in Handlebars.** The default layout doesn't make page-specific `<script>` tags easy. I load Stripe.js globally in the layout (it's cheap) and keep the checkout logic in `checkout.js`, included only on the checkout page.
-
-
-
-
+---
